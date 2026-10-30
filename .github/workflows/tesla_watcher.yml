@@ -27,7 +27,7 @@ jobs:
       - name: Abhängigkeiten & Chrome installieren
         run: |
           pip install -r requirements.txt
-          playwright install --with-deps chrome firefox
+          playwright install --with-deps chrome
 
       - name: Cloudflare WARP einrichten (umgeht Akamai Rechenzentrums-IP-Sperre in der Cloud)
         uses: Boostport/setup-cloudflare-warp@v1
