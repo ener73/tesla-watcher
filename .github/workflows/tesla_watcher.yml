@@ -1,0 +1,48 @@
+name: Tesla Pronta Consegna Watcher
+
+on:
+  schedule:
+    # Läuft automatisch alle 10 Minuten auf den kostenlosen GitHub Cloud-Servern (24/7, auch wenn dein PC aus ist)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # Erlaubt auch das manuelle Starten per Klick im GitHub-Tab "Actions"
+
+permissions:
+  contents: write
+
+jobs:
+  check-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python 3.12 einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Abhängigkeiten & Chrome installieren
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chrome
+
+      - name: Tesla Inventar prüfen (mit virtuellem Display xvfb gegen Bot-Blocker)
+        env:
+          SMTP_SERVER: smtp.gmail.com
+          SMTP_PORT: "587"
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          RECIPIENT_EMAIL: aperathoner@gmail.com
+          INCLUDE_APPROXIMATE: "true"
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" python tesla_watcher.py --once
+
+      - name: Neue Fahrzeuge in seen_vehicles.json speichern (keine doppelten Mails)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_vehicles.json
+          git diff --staged --quiet || (git commit -m "Update seen_vehicles.json" && git push)
