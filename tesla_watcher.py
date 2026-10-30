@@ -156,22 +156,31 @@ def check_tesla_inventory(include_approximate: bool = True) -> List[Dict[str, An
     found_vehicles: List[Dict[str, Any]] = []
 
     with sync_playwright() as p:
-        # Nutze echten Chrome/Edge-Kanal oder Chromium im Off-Screen-Modus (umgeht Akamai Bot-Blocker)
+        # Nutze echten Chrome/Edge-Kanal oder Firefox/Chromium im Off-Screen-Modus (umgeht Akamai Bot-Blocker)
         launch_args = [
             "--window-position=-32000,-32000",
             "--window-size=1280,800",
             "--disable-blink-features=AutomationControlled",
         ]
         browser = None
-        for channel in ["chrome", "msedge", None]:
+        # Auf Linux/Cloud zuerst Firefox testen, auf Windows zuerst echten Chrome
+        prefer_firefox = sys.platform.startswith("linux")
+        if prefer_firefox:
             try:
-                kwargs: Dict[str, Any] = {"headless": False, "args": launch_args}
-                if channel:
-                    kwargs["channel"] = channel
-                browser = p.chromium.launch(**kwargs)
-                break
+                browser = p.firefox.launch(headless=False)
             except Exception:
-                continue
+                browser = None
+
+        if browser is None:
+            for channel in ["chrome", "msedge", None]:
+                try:
+                    kwargs: Dict[str, Any] = {"headless": False, "args": launch_args}
+                    if channel:
+                        kwargs["channel"] = channel
+                    browser = p.chromium.launch(**kwargs)
+                    break
+                except Exception:
+                    continue
 
         if browser is None:
             raise RuntimeError("Konnte keinen Browser (Chrome/Edge/Chromium) starten.")
